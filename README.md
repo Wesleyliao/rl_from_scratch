@@ -6,4 +6,4 @@ Implementing RL agents from scratch. Tested on CartPole.
     - Dueling DQN
 - Policy Optimization
     - Vanilla Policy Gradient (REINFORCE)
-    - Advantage Actor-Critic (A2C)
+    - Actor-Critic
