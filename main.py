@@ -6,6 +6,7 @@ import gym
 from agents import (
     double_dqn,
     dqn,
+    dueling_dqn,
     policy_gradient
 )
 
@@ -59,7 +60,8 @@ def main():
     # SET AGENT
     # agent = dqn.DQN(env)
     # agent = double_dqn.DoubleDQN(env)
-    agent = policy_gradient.PolicyGradient(env)
+    agent = dueling_dqn.DuelingDQN(env)
+    # agent = policy_gradient.PolicyGradient(env)
 
     all_run_rewards = []
     for i in range(3):

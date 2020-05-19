@@ -1,11 +1,14 @@
 import numpy as np
 import keras
 import random
-from keras.layers import Input, Dense, Activation, Dropout
-from keras.models import Sequential
-from keras.optimizers import Adam
+import tensorflow as tf
 
-class DQN():
+from keras.layers import Input, Dense, Activation, Dropout, Add, Lambda
+from keras.models import Sequential, Model
+from keras.optimizers import Adam
+from keras import backend as K
+
+class DuelingDQN():
     def __init__(self, env):
         
         # hyperparameters
@@ -20,7 +23,7 @@ class DQN():
         self.epsilon_floor = 0.05
         self.n_s = env.observation_space.shape[0]
         self.n_a = env.action_space.n
-        self.description = 'DQN Learner'
+        self.description = 'Dueling DQN Learner'
         self.update_frequency = 100
         self.verbose = False
 
@@ -37,13 +40,34 @@ class DQN():
         self.model = self._make_model_()
         self.target_model = self._make_model_()
 
-
     def _make_model_(self):
 
-        model = Sequential()
-        model.add(Dense(64, input_dim=self.n_s, activation='relu'))
-        model.add(Dense(64, activation='relu'))
-        model.add(Dense(self.n_a, activation = 'linear'))
+        inputs = Input(shape=(self.n_s,))
+
+        # Common layers
+        common = Dense(32)(inputs)
+        common = Activation("relu")(common)
+
+        # Value layers
+        value = Dense(32)(common)
+        value = Activation("relu")(value)
+        value = Dense(1)(value)
+        value = Activation("relu")(value)
+
+        # Advantage layers
+        adv = Dense(32)(common)
+        adv = Activation("relu")(adv)
+        adv = Dense(self.n_a)(adv)
+        adv = Activation("relu")(adv)
+        
+        neg_mean_adv = Lambda(lambda x: -K.mean(x, axis=1))(adv)
+
+        # Combining them
+        comb = Add()([value, adv])
+        comb = Add()([comb, neg_mean_adv])
+
+        model = Model(inputs=inputs, outputs = comb) 
+
         model.compile(loss='mse', optimizer=Adam(lr=self.nn_learning_rate))
 
         return model
