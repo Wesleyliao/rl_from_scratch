@@ -14,7 +14,7 @@ class DuelingDQN():
         # hyperparameters
         self.env = env
         self.gamma = 0.99
-        self.nn_learning_rate = 0.0002
+        self.nn_learning_rate = 0.0001
         self.nn_batch_size = None
         self.epochs = 1
         self.minibatch_sz = 64
@@ -45,7 +45,7 @@ class DuelingDQN():
         inputs = Input(shape=(self.n_s,))
 
         # Common layers
-        common = Dense(32)(inputs)
+        common = Dense(64)(inputs)
         common = Activation("relu")(common)
 
         # Value layers

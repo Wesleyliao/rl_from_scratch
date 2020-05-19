@@ -16,7 +16,7 @@ class PolicyGradient():
         # hyperparameters
         self.env = env
         self.gamma = 0.99
-        self.nn_learning_rate = 0.01
+        self.nn_learning_rate = 0.001
         self.n_s = env.observation_space.shape[0]
         self.n_a = env.action_space.n
         self.description = 'Vanilla Policy Gradient'

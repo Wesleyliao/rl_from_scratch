@@ -160,6 +160,3 @@ class ActorCritic():
             if len(self.memory) > self.memory_max: self.memory.pop(0)
             self.memory.append([s, a, r, s_prime, done])
             self._batch_train_()
-
-
-            
