@@ -35,10 +35,6 @@ class ActorCritic():
 
     def reset(self):
 
-        self.epsilon = 1.
-        self.epsilon_decay = 0.992
-        self.epsilon_floor = 0.05
-        
         self.step = 0
         self.memory = [] 
          
@@ -157,9 +153,6 @@ class ActorCritic():
         if self.step % self.update_frequency == 0:
             self._model_update_()
 
-        if done and self.epsilon > self.epsilon_floor:
-            self.epsilon = self.epsilon * self.epsilon_decay
-
         self.step += 1        
         
         # Train actor
@@ -181,8 +174,6 @@ class ActorCritic():
             q_values = np.zeros(len(states))
             for i in range(len(q_values)):
                 q_values[i] = q_pred[i][actions[i]]
-
-            n = len(states)
             
             q_values = (q_values - q_values.mean())
 
