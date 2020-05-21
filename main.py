@@ -62,8 +62,8 @@ def main():
     # agent = dqn.DQN(env)
     # agent = double_dqn.DoubleDQN(env)
     # agent = dueling_dqn.DuelingDQN(env)
-    agent = policy_gradient.PolicyGradient(env)
-    # agent = ac.ActorCritic(env)
+    # agent = policy_gradient.PolicyGradient(env)
+    agent = ac.ActorCritic(env)
 
     all_run_rewards = []
     for i in range(3):

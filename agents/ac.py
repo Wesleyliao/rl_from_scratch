@@ -18,24 +18,30 @@ class ActorCritic():
         self.env = env
         self.epochs = 1
         self.gamma = 0.99
-        self.actor_learning_rate = 0.01
-        self.critic_learning_rate = 0.00001
+        self.actor_learning_rate = 0.001
+        self.critic_learning_rate = 0.0002
         self.n_s = env.observation_space.shape[0]
         self.n_a = env.action_space.n
         self.description = 'Actor-Critic'
         self.verbose = False
-        self.memory = [] 
         self.nn_batch_size = None
         self.minibatch_sz = 64
+        self.update_frequency = 200
 
         # memory
         self.memory_max = 50000
 
         self.reset()
 
-
     def reset(self):
-            
+
+        self.epsilon = 1.
+        self.epsilon_decay = 0.992
+        self.epsilon_floor = 0.05
+        
+        self.step = 0
+        self.memory = [] 
+         
         # Initialize actor model
         model = Sequential()
         model.add(Dense(64, input_dim=self.n_s, activation='relu'))
@@ -44,13 +50,21 @@ class ActorCritic():
         self.model = model
         self._build_train_fn()
 
-        # Initialize critic advantage model
+        # Initialize critic model
         critic = Sequential()
-        critic.add(Dense(32, input_dim=self.n_s, activation='relu'))
-        critic.add(Dense(32, activation='relu'))
+        critic.add(Dense(64, input_dim=self.n_s, activation='relu'))
+        critic.add(Dense(64, activation='relu'))
         critic.add(Dense(self.n_a, activation='relu'))
         critic.compile(loss='mse', optimizer=Adam(lr=self.critic_learning_rate))
         self.critic = critic
+
+        # Initialize critic target model
+        critic = Sequential()
+        critic.add(Dense(64, input_dim=self.n_s, activation='relu'))
+        critic.add(Dense(64, activation='relu'))
+        critic.add(Dense(self.n_a, activation='relu'))
+        critic.compile(loss='mse', optimizer=Adam(lr=self.critic_learning_rate))
+        self.critic_target = critic
 
         self.reset_experience()
 
@@ -62,6 +76,10 @@ class ActorCritic():
             'r': [],
         }
 
+
+    def _model_update_(self):
+        self.critic_target.set_weights(self.critic.get_weights())
+
     def pick_action(self, state):
 
         tmp = self.model.predict(np.array([state,]))
@@ -72,6 +90,14 @@ class ActorCritic():
 
         return action
 
+
+    # def pick_action(self, state):
+
+    #     if np.random.random() < self.epsilon:
+    #         return np.random.choice(self.n_a)
+    #     else:
+    #         tmp = self.critic.predict(np.array([state,]))
+    #         return np.argmax(tmp[0])
 
     def _build_train_fn(self):
 
@@ -101,7 +127,7 @@ class ActorCritic():
                                    updates=updates)
 
 
-    def _batch_train_(self):
+    def _batch_train_critic(self):
 
         if len(self.memory) > self.minibatch_sz:
 
@@ -113,7 +139,7 @@ class ActorCritic():
             sp_vec = np.array([x[3] for x in batch])
 
             m_pred = self.critic.predict(s_vec)
-            tm_pred = self.critic.predict(sp_vec)
+            tm_pred = self.critic_target.predict(sp_vec)
 
             # use update rule from Minh 2013
             for i in range(len(batch)): 
@@ -130,6 +156,21 @@ class ActorCritic():
 
     def update(self, s, a, r, s_prime, done):
 
+        # Train critic
+        if len(self.memory) > self.memory_max: self.memory.pop(0)
+        self.memory.append([s, a, r, s_prime, done])
+
+        self._batch_train_critic()
+
+        if self.step % self.update_frequency == 0:
+            self._model_update_()
+
+        if done and self.epsilon > self.epsilon_floor:
+            self.epsilon = self.epsilon * self.epsilon_decay
+
+        self.step += 1        
+        
+        # Train actor
         self.experience_cache['s'].append(s)
         self.experience_cache['a'].append(a)
         self.experience_cache['r'].append(r)
@@ -149,14 +190,14 @@ class ActorCritic():
             for i in range(len(q_values)):
                 q_values[i] = q_pred[i][actions[i]]
 
-            # Train actor
+            n = len(states)
+            
+            q_values = (q_values - q_values.mean())
+
             loss = self.train_fn([
                 states,
                 action_onehot_encoded,
                 q_values
             ])
 
-            # Train critic
-            if len(self.memory) > self.memory_max: self.memory.pop(0)
-            self.memory.append([s, a, r, s_prime, done])
-            self._batch_train_()
+            self.reset_experience()
