@@ -91,14 +91,6 @@ class ActorCritic():
         return action
 
 
-    # def pick_action(self, state):
-
-    #     if np.random.random() < self.epsilon:
-    #         return np.random.choice(self.n_a)
-    #     else:
-    #         tmp = self.critic.predict(np.array([state,]))
-    #         return np.argmax(tmp[0])
-
     def _build_train_fn(self):
 
         """
