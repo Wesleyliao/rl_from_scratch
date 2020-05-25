@@ -7,6 +7,7 @@ from agents import (
     double_dqn,
     dqn,
     dueling_dqn,
+    prioritized_ddqn,
     ac,
     policy_gradient,
     a2c
@@ -65,7 +66,8 @@ def main():
     # agent = dueling_dqn.DuelingDQN(env)
     # agent = policy_gradient.PolicyGradient(env)
     # agent = ac.ActorCritic(env)
-    agent = a2c.AdvantageActorCritic(env)
+    # agent = a2c.AdvantageActorCritic(env)
+    agent = prioritized_ddqn.PrioritizedDDQN(env)
 
     all_run_rewards = []
     for i in range(3):

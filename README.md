@@ -4,6 +4,7 @@ Implementing RL agents from scratch. Tested on CartPole.
     - DQN
     - Double DQN
     - Dueling DQN
+    - Prioritized Experience Replay DDQN
 - Policy Optimization
     - Vanilla Policy Gradient (REINFORCE)
     - Actor-Critic
