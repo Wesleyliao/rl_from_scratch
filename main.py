@@ -10,7 +10,8 @@ from agents import (
     prioritized_ddqn,
     ac,
     policy_gradient,
-    a2c
+    a2c,
+    ddpg
 )
 
 
@@ -31,9 +32,9 @@ def perform_set(env, agent):
             total_reward += reward
             s = state_prime
 
-            # env.render()
+            env.render()
         
-        if i % 10 == 0: print('--- Iteration',i, 'total reward', total_reward)
+        if i % 1 == 0: print('--- Iteration',i, 'total reward', total_reward)
         total_rewards.append(total_reward)
     
     return np.array(total_rewards)
@@ -57,7 +58,9 @@ def make_charts(agent, mean, std):
 def main():
 
     # SET ENVIRONMENT
-    env = gym.make('CartPole-v0')
+    # env = gym.make('CartPole-v0')
+    # env = gym.make('Pendulum-v0')
+    env = gym.make('MountainCarContinuous-v0')
     # env = gym.make('LunarLander-v2')
 
     # SET AGENT
@@ -67,7 +70,8 @@ def main():
     # agent = policy_gradient.PolicyGradient(env)
     # agent = ac.ActorCritic(env)
     # agent = a2c.AdvantageActorCritic(env)
-    agent = prioritized_ddqn.PrioritizedDDQN(env)
+    # agent = prioritized_ddqn.PrioritizedDDQN(env)
+    agent = ddpg.DDPG(env)
 
     all_run_rewards = []
     for i in range(3):
