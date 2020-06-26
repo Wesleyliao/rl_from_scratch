@@ -20,7 +20,7 @@ def perform_set(env, agent):
 
     total_rewards = []
 
-    for i in range(500):
+    for i in range(300):
         s = env.reset()
         done = False
         total_reward = 0 
@@ -34,7 +34,7 @@ def perform_set(env, agent):
 
             env.render()
         
-        if i % 1 == 0: print('--- Iteration',i, 'total reward', total_reward)
+        if i % 1 == 0: print('--- Iteration',i, 'total reward', total_reward) #, 'noise sigma', agent.sigma)
         total_rewards.append(total_reward)
     
     return np.array(total_rewards)
@@ -59,8 +59,8 @@ def main():
 
     # SET ENVIRONMENT
     # env = gym.make('CartPole-v0')
-    # env = gym.make('Pendulum-v0')
-    env = gym.make('MountainCarContinuous-v0')
+    env = gym.make('Pendulum-v0')
+    # env = gym.make('MountainCarContinuous-v0')
     # env = gym.make('LunarLander-v2')
 
     # SET AGENT

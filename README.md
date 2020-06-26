@@ -9,3 +9,4 @@ Implementing RL agents from scratch. Tested on CartPole.
     - Vanilla Policy Gradient (REINFORCE)
     - Actor-Critic
     - Advantage Actor-Critic (A2C)
+    - Deep Deterministic Policy Gradient (DDPG)

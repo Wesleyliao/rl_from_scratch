@@ -2,46 +2,14 @@ import numpy as np
 import random
 import tensorflow as tf
 
-from tensorflow.keras.layers import Input, Dense, Activation, Dropout, Concatenate
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Input, Dense, Activation, Dropout, Concatenate, add, multiply
+from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import backend as K
 from tensorflow.keras import utils as np_utils
  
 tf.compat.v1.disable_eager_execution()
 
-"""
-Class for Ornstein-Uhlenbeck Process
-Taken from https://github.com/vitchyr/rlkit/blob/master/rlkit/exploration_strategies/ou_strategy.py
-"""
-class OUNoise():
-    def __init__(self, action_space, mu=0.0, theta=0.15, max_sigma=0.3, min_sigma=0.01, decay_period=100000):
-        self.mu           = mu
-        self.theta        = theta
-        self.sigma        = max_sigma
-        self.max_sigma    = max_sigma
-        self.min_sigma    = min_sigma
-        self.decay_period = decay_period
-        self.action_dim   = action_space.shape[0]
-        self.low          = action_space.low
-        self.high         = action_space.high
-        self.t            = 0
-        self.reset()
-        
-    def reset(self):
-        self.state = np.ones(self.action_dim) * self.mu
-        
-    def evolve_state(self):
-        x  = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * np.random.randn(self.action_dim)
-        self.state = x + dx
-        return self.state
-    
-    def get_action(self, action): 
-        ou_state = self.evolve_state()
-        self.sigma = self.max_sigma - (self.max_sigma - self.min_sigma) * min(1.0, self.t / self.decay_period)
-        self.t += 1
-        return np.clip(action + ou_state, self.low, self.high)
 
 
 class DDPG():
@@ -61,9 +29,14 @@ class DDPG():
         self.tau = 0.001
         self.nn_batch_size = None
         self.minibatch_sz = 64
-        self.sigma = 2.
-        self.sigma_min = .05
-        self.sigma_decay = .99999
+        self.action_low = env.action_space.low
+        self.action_high = env.action_space.high
+        self.sigma = self.action_high - self.action_low
+        self.sigma_min = (self.action_high - self.action_low) / 1000
+        self.sigma_decay = .9999
+
+        print('action high', self.action_high)
+        print('action low', self.action_low)
 
         # memory
         self.memory_max = 50000
@@ -72,24 +45,29 @@ class DDPG():
 
     def create_actor_model(self):
         
-        model = Sequential()
-        model.add(Dense(64, input_dim=self.n_s, activation='relu'))
-        model.add(Dense(64, activation='relu'))
-        model.add(Dense(1, activation = 'linear'))
+        inputs = Input(shape=self.n_s)
+        x = Dense(32, activation='relu')(inputs)
+        x = Dense(32, activation='relu')(x)
+        x = Dense(1, activation='sigmoid')(x)
+        x = multiply([x, self.action_high-self.action_low])
+        x = add([x, self.action_low])
+
+        model = Model(inputs=inputs, outputs=x)
 
         return model
     
     def create_critic_model(self):
 
         critic = Sequential()
-        critic.add(Dense(64, input_dim=self.n_s+self.n_a, activation='relu'))
-        critic.add(Dense(64, activation='relu'))
+        critic.add(Dense(32, input_dim=self.n_s+self.n_a, activation='relu'))
+        critic.add(Dense(32, activation='relu'))
         critic.add(Dense(1, activation='linear'))
         critic.compile(loss='mse', optimizer=Adam(lr=self.critic_learning_rate))
         return critic
 
     def reset(self):
         
+        self.sigma = self.action_high - self.action_low
         self.step = 0
         self.memory = [] 
          
@@ -106,9 +84,6 @@ class DDPG():
         # Initialize critic target model
         self.critic_target = self.create_critic_model()
         self.critic_target.set_weights(self.critic.get_weights())
-
-        # Initialize OU process
-        self.ou_noise = OUNoise(self.env.action_space)
 
         # Create train function for actor
         self._build_actor_train_fn()
@@ -131,8 +106,12 @@ class DDPG():
     def pick_action(self, state):
 
         action = self.model.predict(np.array([state,]))[0]
+        
+        if self.verbose:
+            print('model prediction', action)
+        
         action = np.clip(action + np.random.normal(0, self.sigma), self.env.action_space.low, self.env.action_space.high)
-        self.sigma = self.sigma * self.sigma_decay
+        self.sigma = max(self.sigma * self.sigma_decay, self.sigma_min)
 
         if self.verbose:
             print(f'Action taken in state {state}: {action}')
