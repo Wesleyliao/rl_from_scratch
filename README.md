@@ -1,5 +1,5 @@
 # RL from scratch
-Implementing RL agents from scratch. Tested on CartPole. 
+Implementing RL agents from scratch. Tested on CartPole for discrete action and Pendulum for continuous action. 
 - Q-Learning
     - DQN
     - Double DQN
