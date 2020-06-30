@@ -10,7 +10,7 @@ from tensorflow.keras import utils as np_utils
  
 tf.compat.v1.disable_eager_execution()
 
-class AdvantageActorCritic():
+class ProximalPolicyOptimization():
 
     def __init__(self, env):
         
@@ -22,11 +22,14 @@ class AdvantageActorCritic():
         self.critic_learning_rate = 0.0002
         self.n_s = env.observation_space.shape[0]
         self.n_a = env.action_space.n
-        self.description = 'Advantage Actor-Critic'
+        self.description = 'Proximal Policy Optimization'
         self.verbose = False
         self.nn_batch_size = None
         self.minibatch_sz = 64
         self.update_frequency = 200
+        self.epsilon = 0.05
+        self.entropy_coeff = 0.0000
+        self.minibatch_epochs = 5
 
         # memory
         self.memory_max = 50000
@@ -40,24 +43,24 @@ class AdvantageActorCritic():
          
         # Initialize actor model
         model = Sequential()
-        model.add(Dense(64, input_dim=self.n_s, activation='relu'))
-        model.add(Dense(64, activation='relu'))
+        model.add(Dense(32, input_dim=self.n_s, activation='relu'))
+        model.add(Dense(32, activation='relu'))
         model.add(Dense(self.n_a, activation = 'softmax'))
         self.model = model
         self._build_train_fn()
 
         # Initialize critic model
         critic = Sequential()
-        critic.add(Dense(64, input_dim=self.n_s, activation='relu'))
-        critic.add(Dense(64, activation='relu'))
+        critic.add(Dense(32, input_dim=self.n_s, activation='relu'))
+        critic.add(Dense(32, activation='relu'))
         critic.add(Dense(self.n_a, activation='relu'))
         critic.compile(loss='mse', optimizer=Adam(lr=self.critic_learning_rate))
         self.critic = critic
 
         # Initialize critic target model
         critic = Sequential()
-        critic.add(Dense(64, input_dim=self.n_s, activation='relu'))
-        critic.add(Dense(64, activation='relu'))
+        critic.add(Dense(32, input_dim=self.n_s, activation='relu'))
+        critic.add(Dense(32, activation='relu'))
         critic.add(Dense(self.n_a, activation='relu'))
         critic.compile(loss='mse', optimizer=Adam(lr=self.critic_learning_rate))
         self.critic_target = critic
@@ -70,7 +73,8 @@ class AdvantageActorCritic():
             's': [],
             'a': [],
             'r': [],
-            's_prime': []
+            's_prime': [],
+            'a_prob': []
         }
 
 
@@ -85,6 +89,9 @@ class AdvantageActorCritic():
         if self.verbose: 
             print(f'prediction confidence {tmp}')
 
+        # Save action probability for later
+        self.experience_cache['a_prob'].append(tmp[0][action])
+
         return action
 
 
@@ -97,12 +104,14 @@ class AdvantageActorCritic():
         action_prob_placeholder = self.model.output
         action_onehot_placeholder = K.placeholder(shape=(None, self.n_a), name="action_onehot")
         adv_placeholder = K.placeholder(shape=(None,), name="advantages")
+        old_action_probs_placeholder = K.placeholder(shape=(None,), name="pi_old")
 
         action_prob = K.sum(action_prob_placeholder * action_onehot_placeholder, axis=1)
-        log_action_prob = K.log(action_prob)
 
-        loss = - log_action_prob * adv_placeholder
-        loss = K.mean(loss)
+        r = action_prob / (old_action_probs_placeholder + 1e-10)
+
+        clip_loss = K.minimum(r*adv_placeholder, K.clip(r, 1-self.epsilon, 1+self.epsilon)*adv_placeholder)
+        loss = -K.mean(clip_loss + self.entropy_coeff*-action_prob*K.log(action_prob + 1e-10))
 
         adam = Adam(lr=self.actor_learning_rate)
 
@@ -111,7 +120,8 @@ class AdvantageActorCritic():
 
         self.train_fn = K.function(inputs=[self.model.input,
                                            action_onehot_placeholder,
-                                           adv_placeholder],
+                                           adv_placeholder,
+                                           old_action_probs_placeholder],
                                    outputs=[loss],
                                    updates=updates)
 
@@ -168,6 +178,7 @@ class AdvantageActorCritic():
             actions = np.array(self.experience_cache['a'])
             rewards = np.array(self.experience_cache['r'])
             s_primes = np.array(self.experience_cache['s_prime'])
+            a_probs = np.array(self.experience_cache['a_prob'])
 
             # One-hot encode the actions
             action_onehot_encoded =  np_utils.to_categorical(actions, num_classes=self.n_a)
@@ -181,10 +192,12 @@ class AdvantageActorCritic():
             
             advantages = (advantages - advantages.mean())
 
-            loss = self.train_fn([
-                states,
-                action_onehot_encoded,
-                advantages
-            ])
+            for _ in range(self.minibatch_epochs):
+                loss = self.train_fn([
+                    states,
+                    action_onehot_encoded,
+                    advantages,
+                    a_probs
+                ])
 
             self.reset_experience()

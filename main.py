@@ -11,7 +11,8 @@ from agents import (
     ac,
     policy_gradient,
     a2c,
-    ddpg
+    ddpg,
+    ppo
 )
 
 
@@ -58,8 +59,8 @@ def make_charts(agent, mean, std):
 def main():
 
     # SET ENVIRONMENT
-    # env = gym.make('CartPole-v0')
-    env = gym.make('Pendulum-v0')
+    env = gym.make('CartPole-v0')
+    # env = gym.make('Pendulum-v0')
     # env = gym.make('MountainCarContinuous-v0')
     # env = gym.make('LunarLander-v2')
 
@@ -71,7 +72,8 @@ def main():
     # agent = ac.ActorCritic(env)
     # agent = a2c.AdvantageActorCritic(env)
     # agent = prioritized_ddqn.PrioritizedDDQN(env)
-    agent = ddpg.DDPG(env)
+    # agent = ddpg.DDPG(env)
+    agent = ppo.ProximalPolicyOptimization(env)
 
     all_run_rewards = []
     for i in range(3):
